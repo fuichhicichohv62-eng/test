@@ -17,95 +17,107 @@ jobs:
       with:
         xcode-version: '16.4'
     
-    - name: Install dependencies
+    - name: Install dependencies and create libroot header
       run: |
         brew install ldid
         
-        # Install libroot from original TrollSpeed
-        cp libraries/libroot_dyn_iphoneos-arm64.a /usr/local/lib/ || true
+        # Create libroot header in system include path
+        sudo mkdir -p /usr/local/include
+        sudo tee /usr/local/include/libroot.h > /dev/null << 'EOF'
+        #ifndef LIBROOT_H
+        #define LIBROOT_H
         
-    - name: Replace TrollSpeed logic with Clash Royale menu
+        #include <stdint.h>
+        #include <stddef.h>
+        #include <sys/param.h>
+        #import <Foundation/Foundation.h>
+        
+        #ifdef __cplusplus
+        extern "C" {
+        #endif
+        
+        // Core libroot functions
+        const char *libroot_dyn_get_root_prefix(void);
+        const char *libroot_dyn_get_jbroot_prefix(void);
+        const char *libroot_dyn_get_boot_uuid(void);
+        char *libroot_dyn_rootfspath(const char *path, char *resolvedPath);
+        char *libroot_dyn_jbrootpath(const char *path, char *resolvedPath);
+        
+        // Convenience macros
+        #define JBROOT_PATH_NSSTRING(path) [@"/var/jb" stringByAppendingString:@path]
+        #define JBROOT_PATH_CSTRING(cPath) "/var/jb" cPath
+        
+        #ifdef __cplusplus
+        }
+        #endif
+        
+        #endif
+        EOF
+        
+    - name: Integrate Clash Royale menu
       run: |
-        # Replace main application logic
-        cp mobile_menu.m sources/HUDApp.mm
-        cp mobile_menu.h sources/HUDHelper.h
+        # Copy mobile menu files to sources
+        cp mobile_menu.h sources/
+        cp mobile_menu.m sources/
+        cp -r kfd sources/
         
-        # Create stub functions for Swift files
-        echo "" >> sources/HUDHelper.h
-        echo "// Stub functions for Swift compatibility" >> sources/HUDHelper.h
-        echo "bool IsHUDEnabled(void);" >> sources/HUDHelper.h
-        echo "void SetHUDEnabled(bool enabled);" >> sources/HUDHelper.h
+        # Replace HUDApp.mm with mobile menu initialization
+        cat > sources/HUDApp.mm << 'EOF'
+        #import "mobile_menu.h"
         
-        echo "" >> sources/HUDApp.mm
-        echo "// Stub functions for Swift compatibility" >> sources/HUDApp.mm
-        echo "bool IsHUDEnabled(void) {" >> sources/HUDApp.mm
-        echo "    return [[MobileMenu sharedInstance] isElixirHackEnabled];" >> sources/HUDApp.mm
-        echo "}" >> sources/HUDApp.mm
-        echo "" >> sources/HUDApp.mm
-        echo "void SetHUDEnabled(bool enabled) {" >> sources/HUDApp.mm
-        echo "    if (enabled) {" >> sources/HUDApp.mm
-        echo "        [[MobileMenu sharedInstance] enableElixirVisibility];" >> sources/HUDApp.mm
-        echo "    } else {" >> sources/HUDApp.mm
-        echo "        [[MobileMenu sharedInstance] disableElixirVisibility];" >> sources/HUDApp.mm
-        echo "    }" >> sources/HUDApp.mm
-        echo "}" >> sources/HUDApp.mm
+        __attribute__((constructor))
+        static void initializeClashRoyaleMenu() {
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [MobileMenu sharedInstance];
+            });
+        }
         
-        # Update bundle identifier in Info.plist
+        bool IsHUDEnabled(void) {
+            return [[MobileMenu sharedInstance] isElixirHackEnabled];
+        }
+        
+        void SetHUDEnabled(bool enabled) {
+            if (enabled) {
+                [[MobileMenu sharedInstance] enableElixirVisibility];
+            } else {
+                [[MobileMenu sharedInstance] disableElixirVisibility];
+            }
+        }
+        EOF
+        
+        # Update Info.plist
         sed -i '' 's/ch.xxtou.hudapp/com.clash.royale.menu/g' Resources/Info.plist
         sed -i '' 's/TrollSpeed/ClashRoyaleMenu/g' Resources/Info.plist
         
     - name: Build with Xcode
       run: |
-        # Build using Xcode (with original libroot)
         xcodebuild clean build archive \
           -scheme TrollSpeed \
           -project TrollSpeed.xcodeproj \
           -sdk iphoneos \
           -destination 'generic/platform=iOS' \
           -archivePath ClashRoyaleMenu \
-          CODE_SIGNING_ALLOWED=NO | xcpretty || true
-        
-        # Check if archive was created
-        if [ ! -d "ClashRoyaleMenu.xcarchive" ]; then
-          echo "Archive failed, trying without xcpretty"
-          xcodebuild clean build archive \
-            -scheme TrollSpeed \
-            -project TrollSpeed.xcodeproj \
-            -sdk iphoneos \
-            -destination 'generic/platform=iOS' \
-            -archivePath ClashRoyaleMenu \
-            CODE_SIGNING_ALLOWED=NO
-        fi
+          CODE_SIGNING_ALLOWED=NO
         
     - name: Create .tipa
       run: |
-        # Fix permissions and copy entitlements
         chmod 0644 Resources/Info.plist
         cp supports/entitlements.plist ClashRoyaleMenu.xcarchive/Products/
         
-        # Navigate to Applications
         cd ClashRoyaleMenu.xcarchive/Products/Applications
-        
-        # Remove signature
         codesign --remove-signature TrollSpeed.app || true
-        cd -
+        cd ../..
         
-        # Create Payload structure
         cd ClashRoyaleMenu.xcarchive/Products
         mv Applications Payload
-        
-        # Rename app
         mv Payload/TrollSpeed.app Payload/ClashRoyaleMenu.app
         
-        # Sign with ldid
         ldid -Sentitlements.plist Payload/ClashRoyaleMenu.app
         chmod 0644 Payload/ClashRoyaleMenu.app/Info.plist
         
-        # Create .tipa
         zip -qr ClashRoyaleMenu.tipa Payload
-        cd -
+        cd ../..
         
-        # Move to packages
         mkdir -p packages
         mv ClashRoyaleMenu.xcarchive/Products/ClashRoyaleMenu.tipa packages/
         
