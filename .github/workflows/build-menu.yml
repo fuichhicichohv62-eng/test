@@ -27,6 +27,14 @@ jobs:
         cp mobile_menu.m sources/HUDApp.mm
         cp mobile_menu.h sources/HUDHelper.h
         
+        # Create stub libroot.h
+        mkdir -p libroot
+        echo "// Stub libroot.h" > libroot/libroot.h
+        echo "#define LIBROOT_AVAILABLE 0" >> libroot/libroot.h
+        
+        # Fix precompiled header
+        sed -i '' 's/#import <libroot.h>/#ifdef LIBROOT_AVAILABLE\n#import <libroot.h>\n#endif/g' supports/hudapp-prefix.pch
+        
         # Create stub functions for Swift files
         echo "" >> sources/HUDHelper.h
         echo "// Stub functions for Swift compatibility" >> sources/HUDHelper.h
