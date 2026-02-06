@@ -23,10 +23,11 @@ jobs:
         cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd.h kfd/ || true
         find kfd -name "*.h" | head -20
     
-    - name: Install Theos
+    - name: Install Theos and ldid
       run: |
         git clone --recursive https://github.com/theos/theos.git $HOME/theos
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+        brew install ldid
         
     - name: Build with Theos
       run: |
@@ -34,18 +35,27 @@ jobs:
         make clean
         make package
         
-    - name: Upload DEB
+    - name: Create .tipa from .dylib
+      run: |
+        mkdir -p Payload/ClashRoyaleMenu.app
+        cp .theos/obj/debug/ClashRoyaleMobileMenu.dylib Payload/ClashRoyaleMenu.app/
+        cp mobile_menu.h Payload/ClashRoyaleMenu.app/ || true
+        mkdir -p output
+        cd Payload && zip -r ../output/ClashRoyaleMenu.tipa . && cd ..
+        ls -lh output/
+        
+    - name: Upload TIPA
       uses: actions/upload-artifact@v4
       with:
-        name: ClashRoyaleMenu-DEB
-        path: packages/*.deb
+        name: ClashRoyaleMenu-TIPA
+        path: output/*.tipa
         
     - name: Create Release
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: menu-v1.0-${{ github.run_number }}
-        files: packages/*.deb
+        files: output/*.tipa
         draft: false
         prerelease: false
       env:
