@@ -3,23 +3,17 @@
 #import <mach-o/dyld.h>
 #import <sys/mman.h>
 
+// Include KFD library
+#include "kfd/libkfd.h"
+
 // Clash Royale bundle identifier
 #define TARGET_BUNDLE_ID @"com.supercell.scroll"
 
-// Elixir related addresses and offsets (based on the data from 111.txt)
-// These are the key addresses for elixir functionality
+// Elixir addresses (from 111.txt)
 #define SHOW_OPPONENT_ELIXIR_BAR_ON_SPECTATE 0x10104c276
-#define SHOW_OPPONENT_ELIXIR_BAR_ON_FRIENDLY_MATCH_SPECTATE 0x10104c2cd
-#define SHOW_OPPONENT_ELIXIR_BAR_ON_TOURNAMENT_SPECTATE 0x10104c3d3
-#define SHOW_OPPONENT_ELIXIR_BAR_ON_RANKED_SPECTATE 0x10104c3fd
-
-// Elixir data addresses
 #define ELIXIR_COUNT_OFFSET 0x101021a5b
-#define ELIXIR_BAR_OFFSET 0x1010237c4
-#define ELIXIR_BAR_2_OFFSET 0x10102397e
-#define OPPONENT_ELIXIR_OFFSET 0x101023615
-#define ELIXIR_AVERAGE_OFFSET 0x10102200f
 #define PLAYER_ELIXIR_OFFSET 0x10106eff4
+#define OPPONENT_ELIXIR_OFFSET 0x101070560
 
 @implementation MobileMenu
 
@@ -43,6 +37,10 @@ static MobileMenu *sharedInstance = nil;
         }
         
         self.isElixirHackEnabled = NO;
+        self.kfdInitialized = NO;
+        self.kfd = 0;
+        self.baseAddress = 0;
+        
         [self setupMenu];
     }
     return self;
@@ -251,6 +249,12 @@ static MobileMenu *sharedInstance = nil;
 - (void)enableElixirVisibility {
     NSLog(@"[MobileMenu] Enabling opponent elixir visibility...");
     
+    // Initialize KFD if not already done
+    if (![self initKFD]) {
+        [self showAlertWithTitle:@"❌ Error" message:@"Failed to initialize KFD exploit!\nPlease try again."];
+        return;
+    }
+    
     self.isElixirHackEnabled = YES;
     
     // Update UI
@@ -266,11 +270,10 @@ static MobileMenu *sharedInstance = nil;
                                                             userInfo:nil 
                                                              repeats:YES];
     
-    // Implement the actual elixir hack
+    // Enable opponent elixir visibility in game
     [self implementElixirHack];
     
-    // Show success alert
-    [self showAlertWithTitle:@"✅ Success" message:@"Opponent elixir visibility enabled!\nYou can now see opponent's elixir in battle."];
+    [self showAlertWithTitle:@"✅ Success" message:@"Opponent elixir visibility enabled!\nKFD exploit active."];
 }
 
 - (void)disableElixirVisibility {
@@ -317,75 +320,56 @@ static MobileMenu *sharedInstance = nil;
 }
 
 - (int)getOpponentElixirValue {
-    // This is where we would read the actual opponent elixir value from memory
-    // For now, we'll simulate it with a random value for demonstration
-    
-    // In a real implementation, you would:
-    // 1. Get the base address of the game
-    // 2. Calculate the actual memory address using the offsets from 111.txt
-    // 3. Read the memory value safely
-    
-    // Simulated elixir value (0-10)
-    static int simulatedElixir = 5;
-    static int direction = 1;
-    
-    simulatedElixir += direction;
-    if (simulatedElixir >= 10 || simulatedElixir <= 0) {
-        direction *= -1;
+    if (!self.kfdInitialized || self.kfd == 0) {
+        return -1;
     }
     
-    return simulatedElixir;
+    // Calculate actual address with ASLR
+    u64 opponentElixirAddr = self.baseAddress + (OPPONENT_ELIXIR_OFFSET - 0x100000000);
+    
+    // Read opponent elixir value from memory
+    u64 elixirValue = [self kread64:opponentElixirAddr];
+    
+    // Extract elixir count (usually stored as int32)
+    int elixir = (int)(elixirValue & 0xFFFFFFFF);
+    
+    // Validate range (0-10 for Clash Royale)
+    if (elixir < 0 || elixir > 10) {
+        return -1;
+    }
+    
+    return elixir;
 }
 
 - (void)implementElixirHack {
-    NSLog(@"[MobileMenu] Implementing advanced elixir hack...");
+    NSLog(@"[MobileMenu] Implementing elixir hack with KFD...");
     
-    // Get the base address of the main executable
-    const struct mach_header *header = _dyld_get_image_header(0);
-    intptr_t slide = _dyld_get_image_vmaddr_slide(0);
+    if (!self.kfdInitialized || self.kfd == 0) {
+        NSLog(@"[MobileMenu] KFD not initialized!");
+        return;
+    }
     
-    if (header && slide) {
-        uintptr_t baseAddress = (uintptr_t)header + slide;
-        
-        NSLog(@"[MobileMenu] Base address: 0x%lx", (unsigned long)baseAddress);
-        NSLog(@"[MobileMenu] ASLR slide: 0x%lx", (unsigned long)slide);
-        
-        // Calculate actual addresses with ASLR slide
-        // Note: These addresses need to be adjusted for the actual game version
-        uintptr_t spectateElixirFlag = baseAddress + (SHOW_OPPONENT_ELIXIR_BAR_ON_SPECTATE - 0x100000000);
-        uintptr_t friendlyElixirFlag = baseAddress + (SHOW_OPPONENT_ELIXIR_BAR_ON_FRIENDLY_MATCH_SPECTATE - 0x100000000);
-        uintptr_t tournamentElixirFlag = baseAddress + (SHOW_OPPONENT_ELIXIR_BAR_ON_TOURNAMENT_SPECTATE - 0x100000000);
-        uintptr_t rankedElixirFlag = baseAddress + (SHOW_OPPONENT_ELIXIR_BAR_ON_RANKED_SPECTATE - 0x100000000);
-        
-        NSLog(@"[MobileMenu] Calculated addresses:");
-        NSLog(@"[MobileMenu] Spectate flag: 0x%lx", (unsigned long)spectateElixirFlag);
-        NSLog(@"[MobileMenu] Friendly flag: 0x%lx", (unsigned long)friendlyElixirFlag);
-        NSLog(@"[MobileMenu] Tournament flag: 0x%lx", (unsigned long)tournamentElixirFlag);
-        NSLog(@"[MobileMenu] Ranked flag: 0x%lx", (unsigned long)rankedElixirFlag);
-        
-        // In a real implementation, you would modify memory here
-        // For safety and demonstration purposes, we're just logging
-        
-        /*
-        // Example of actual memory modification (DANGEROUS - use with caution):
-        // Make memory writable
-        if (mprotect((void*)(spectateElixirFlag & ~(getpagesize()-1)), getpagesize(), PROT_READ | PROT_WRITE) == 0) {
-            // Modify the flags to enable opponent elixir visibility
-            *(bool*)spectateElixirFlag = true;
-            *(bool*)friendlyElixirFlag = true;
-            *(bool*)tournamentElixirFlag = true;
-            *(bool*)rankedElixirFlag = true;
-            
-            // Restore memory protection
-            mprotect((void*)(spectateElixirFlag & ~(getpagesize()-1)), getpagesize(), PROT_READ | PROT_EXEC);
-            
-            NSLog(@"[MobileMenu] Successfully modified elixir visibility flags");
-        } else {
-            NSLog(@"[MobileMenu] Failed to modify memory protection");
-        }
-        */
+    // Calculate addresses with ASLR
+    u64 spectateFlag = self.baseAddress + (SHOW_OPPONENT_ELIXIR_BAR_ON_SPECTATE - 0x100000000);
+    
+    NSLog(@"[MobileMenu] Base: 0x%llx", self.baseAddress);
+    NSLog(@"[MobileMenu] Spectate flag addr: 0x%llx", spectateFlag);
+    
+    // Read current value
+    u64 currentValue = [self kread64:spectateFlag];
+    NSLog(@"[MobileMenu] Current spectate flag value: 0x%llx", currentValue);
+    
+    // Enable opponent elixir visibility (set to 1/true)
+    [self kwrite64:spectateFlag value:1];
+    
+    // Verify write
+    u64 newValue = [self kread64:spectateFlag];
+    NSLog(@"[MobileMenu] New spectate flag value: 0x%llx", newValue);
+    
+    if (newValue == 1) {
+        NSLog(@"[MobileMenu] Successfully enabled opponent elixir visibility!");
     } else {
-        NSLog(@"[MobileMenu] Failed to get base address or ASLR slide");
+        NSLog(@"[MobileMenu] Warning: Flag value not changed as expected");
     }
 }
 
@@ -432,11 +416,73 @@ static MobileMenu *sharedInstance = nil;
     return topVC;
 }
 
+- (BOOL)initKFD {
+    if (self.kfdInitialized) {
+        return YES;
+    }
+    
+    NSLog(@"[MobileMenu] Initializing KFD exploit...");
+    
+    // Get base address
+    const struct mach_header *header = _dyld_get_image_header(0);
+    intptr_t slide = _dyld_get_image_vmaddr_slide(0);
+    self.baseAddress = (u64)header + slide;
+    
+    NSLog(@"[MobileMenu] Base address: 0x%llx", self.baseAddress);
+    
+    // Initialize KFD with physpuppet method
+    u64 puaf_method = puaf_physpuppet;
+    u64 kread_method = kread_sem_open;
+    u64 kwrite_method = kwrite_sem_open;
+    
+    // Try to open KFD
+    self.kfd = kopen(1, puaf_method, kread_method, kwrite_method);
+    
+    if (self.kfd == 0) {
+        NSLog(@"[MobileMenu] KFD initialization failed!");
+        return NO;
+    }
+    
+    NSLog(@"[MobileMenu] KFD initialized successfully! kfd=0x%llx", self.kfd);
+    self.kfdInitialized = YES;
+    return YES;
+}
+
+- (void)closeKFD {
+    if (self.kfdInitialized && self.kfd != 0) {
+        NSLog(@"[MobileMenu] Closing KFD...");
+        kclose(self.kfd);
+        self.kfd = 0;
+        self.kfdInitialized = NO;
+    }
+}
+
+- (u64)kread64:(u64)addr {
+    if (!self.kfdInitialized || self.kfd == 0) {
+        NSLog(@"[MobileMenu] KFD not initialized!");
+        return 0;
+    }
+    
+    u64 value = 0;
+    kread(self.kfd, addr, &value, sizeof(u64));
+    return value;
+}
+
+- (void)kwrite64:(u64)addr value:(u64)value {
+    if (!self.kfdInitialized || self.kfd == 0) {
+        NSLog(@"[MobileMenu] KFD not initialized!");
+        return;
+    }
+    
+    kwrite(self.kfd, &value, addr, sizeof(u64));
+}
+
 - (void)dealloc {
     if (self.elixirUpdateTimer) {
         [self.elixirUpdateTimer invalidate];
         self.elixirUpdateTimer = nil;
     }
+    [self closeKFD];
 }
 
 @end

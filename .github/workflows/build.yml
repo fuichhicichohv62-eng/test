@@ -1,0 +1,58 @@
+name: Build TrollSpeed
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Build
+      run: |
+        xcodebuild -project TrollSpeed.xcodeproj \
+          -scheme TrollSpeed \
+          -configuration Release \
+          -archivePath build/TrollSpeed.xcarchive \
+          archive \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+        
+    - name: Create IPA
+      run: |
+        mkdir Payload
+        cp -r build/TrollSpeed.xcarchive/Products/Applications/TrollSpeed.app Payload/
+        zip -r TrollSpeed.ipa Payload
+        rm -rf Payload
+        
+    - name: Rename to TIPA
+      run: mv TrollSpeed.ipa TrollSpeed.tipa
+    
+    - name: Upload TIPA
+      uses: actions/upload-artifact@v3
+      with:
+        name: TrollSpeed-TIPA
+        path: TrollSpeed.tipa
+        
+    - name: Create Release
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0-${{ github.run_number }}
+        files: TrollSpeed.tipa
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

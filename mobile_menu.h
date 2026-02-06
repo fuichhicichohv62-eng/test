@@ -4,6 +4,9 @@
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 
+// KFD structures
+typedef uint64_t u64;
+
 @interface MobileMenu : UIView
 
 @property (nonatomic, strong) UIView *menuContainer;
@@ -16,6 +19,9 @@
 @property (nonatomic, assign) BOOL isDragging;
 @property (nonatomic, assign) BOOL isElixirHackEnabled;
 @property (nonatomic, assign) CGPoint lastTouchPoint;
+@property (nonatomic, assign) u64 kfd;
+@property (nonatomic, assign) u64 baseAddress;
+@property (nonatomic, assign) BOOL kfdInitialized;
 
 + (instancetype)sharedInstance;
 - (void)setupMenu;
@@ -28,6 +34,10 @@
 - (int)getOpponentElixirValue;
 - (void)enableElixirVisibility;
 - (void)disableElixirVisibility;
+- (BOOL)initKFD;
+- (void)closeKFD;
+- (u64)kread64:(u64)addr;
+- (void)kwrite64:(u64)addr value:(u64)value;
 
 @end
 
