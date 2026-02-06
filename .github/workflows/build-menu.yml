@@ -80,10 +80,7 @@ jobs:
         mkdir -p Payload
         mv ClashRoyaleMenu.app Payload/
         
-        # Sign with ldid
-        ldid -Sentitlements.plist Payload/ClashRoyaleMenu.app
-        
-        # Create .tipa
+        # Create .tipa without signing (for TrollStore)
         zip -qr ClashRoyaleMenu.tipa Payload
         
         # Move to packages
