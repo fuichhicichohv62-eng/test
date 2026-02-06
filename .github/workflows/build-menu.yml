@@ -60,33 +60,34 @@ jobs:
         cp mobile_menu.m sources/
         cp -r kfd sources/
         
-        # Replace HUDApp.mm with mobile menu initialization
-        cat > sources/HUDApp.mm << 'EOF'
+        # Add mobile_menu.m to Xcode project build phases
+        # Find the PBXSourcesBuildPhase section and add mobile_menu.m
+        perl -i -pe 's/(CC711D642B5BF5C6007235A6 \/\* HUDApp\.mm in Sources \*\/,)/$1\n\t\t\t\tMOBILEMENU01 \/* mobile_menu.m in Sources *\/,/' TrollSpeed.xcodeproj/project.pbxproj
+        
+        # Add file reference for mobile_menu.m
+        perl -i -pe 's/(CC711D482B5BF5C6007235A6 \/\* HUDApp\.mm \*\/ = \{isa = PBXFileReference;)/$1\n\t\tMOBILEMENU01 \/* mobile_menu.m *\/ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = mobile_menu.m; sourceTree = "<group>"; };/' TrollSpeed.xcodeproj/project.pbxproj
+        
+        # Add to sources group
+        perl -i -pe 's/(CC711D482B5BF5C6007235A6 \/\* HUDApp\.mm \*\/,)/$1\n\t\t\t\tMOBILEMENU01 \/* mobile_menu.m *\/,/' TrollSpeed.xcodeproj/project.pbxproj
+        
+        # Add build file entry
+        perl -i -pe 's/(CC711D642B5BF5C6007235A6 \/\* HUDApp\.mm in Sources \*\/ = \{isa = PBXBuildFile;)/$1\n\t\tMOBILEMENU02 \/* mobile_menu.m in Sources *\/ = {isa = PBXBuildFile; fileRef = MOBILEMENU01 \/* mobile_menu.m *\/; };/' TrollSpeed.xcodeproj/project.pbxproj
+        
+        # Replace MOBILEMENU01 with actual reference in build phase
+        perl -i -pe 's/MOBILEMENU01 \/\* mobile_menu\.m in Sources \*\//MOBILEMENU02 \/* mobile_menu.m in Sources *\//' TrollSpeed.xcodeproj/project.pbxproj
+        
+        # Add mobile menu initialization to HUDApp.mm (append, don't replace)
+        cat >> sources/HUDApp.mm << 'EOF'
+        
         #import "mobile_menu.h"
         
         __attribute__((constructor))
         static void initializeClashRoyaleMenu() {
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                 [MobileMenu sharedInstance];
             });
         }
-        
-        bool IsHUDEnabled(void) {
-            return [[MobileMenu sharedInstance] isElixirHackEnabled];
-        }
-        
-        void SetHUDEnabled(bool enabled) {
-            if (enabled) {
-                [[MobileMenu sharedInstance] enableElixirVisibility];
-            } else {
-                [[MobileMenu sharedInstance] disableElixirVisibility];
-            }
-        }
         EOF
-        
-        # Update Info.plist
-        sed -i '' 's/ch.xxtou.hudapp/com.clash.royale.menu/g' Resources/Info.plist
-        sed -i '' 's/TrollSpeed/ClashRoyaleMenu/g' Resources/Info.plist
         
     - name: Build with Xcode
       run: |
@@ -97,7 +98,7 @@ jobs:
           -destination 'generic/platform=iOS' \
           -archivePath ClashRoyaleMenu \
           CODE_SIGNING_ALLOWED=NO \
-          HEADER_SEARCH_PATHS='$(inherited) $(SRCROOT)/supports'
+          HEADER_SEARCH_PATHS='$(inherited) $(SRCROOT)/supports $(SRCROOT)/sources'
         
     - name: Create .tipa
       run: |
