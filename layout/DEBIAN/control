@@ -1,0 +1,9 @@
+Package: com.fre1zik.clashroyalemenu
+Name: Clash Royale Mobile Menu
+Version: 1.0.0
+Section: Tweaks
+Depends: firmware (>= 14.0), mobilesubstrate
+Architecture: iphoneos-arm
+Author: fre1zik
+Maintainer: fre1zik
+Description: Advanced mobile menu for Clash Royale with opponent elixir visibility and other features.
