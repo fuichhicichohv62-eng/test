@@ -28,28 +28,24 @@ jobs:
         cp mobile_menu.h sources/HUDHelper.h
         
         # Create stub functions for Swift files
-        cat >> sources/HUDHelper.h << 'EOF'
-
-// Stub functions for Swift compatibility
-bool IsHUDEnabled(void);
-void SetHUDEnabled(bool enabled);
-EOF
+        echo "" >> sources/HUDHelper.h
+        echo "// Stub functions for Swift compatibility" >> sources/HUDHelper.h
+        echo "bool IsHUDEnabled(void);" >> sources/HUDHelper.h
+        echo "void SetHUDEnabled(bool enabled);" >> sources/HUDHelper.h
         
-        cat >> sources/HUDApp.mm << 'EOF'
-
-// Stub functions for Swift compatibility
-bool IsHUDEnabled(void) {
-    return [[MobileMenu sharedInstance] isElixirHackEnabled];
-}
-
-void SetHUDEnabled(bool enabled) {
-    if (enabled) {
-        [[MobileMenu sharedInstance] enableElixirVisibility];
-    } else {
-        [[MobileMenu sharedInstance] disableElixirVisibility];
-    }
-}
-EOF
+        echo "" >> sources/HUDApp.mm
+        echo "// Stub functions for Swift compatibility" >> sources/HUDApp.mm
+        echo "bool IsHUDEnabled(void) {" >> sources/HUDApp.mm
+        echo "    return [[MobileMenu sharedInstance] isElixirHackEnabled];" >> sources/HUDApp.mm
+        echo "}" >> sources/HUDApp.mm
+        echo "" >> sources/HUDApp.mm
+        echo "void SetHUDEnabled(bool enabled) {" >> sources/HUDApp.mm
+        echo "    if (enabled) {" >> sources/HUDApp.mm
+        echo "        [[MobileMenu sharedInstance] enableElixirVisibility];" >> sources/HUDApp.mm
+        echo "    } else {" >> sources/HUDApp.mm
+        echo "        [[MobileMenu sharedInstance] disableElixirVisibility];" >> sources/HUDApp.mm
+        echo "    }" >> sources/HUDApp.mm
+        echo "}" >> sources/HUDApp.mm
         
         # Update bundle identifier in Info.plist
         sed -i '' 's/ch.xxtou.hudapp/com.clash.royale.menu/g' Resources/Info.plist
