@@ -12,6 +12,13 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Setup KFD files
+      run: |
+        mkdir -p kfd
+        cp -r TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/* kfd/
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd.h kfd/
+        ls -la kfd/
+    
     - name: Install Theos
       run: |
         git clone --recursive https://github.com/theos/theos.git $HOME/theos
