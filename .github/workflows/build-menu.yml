@@ -21,19 +21,14 @@ jobs:
       run: |
         brew install ldid
         
+        # Install libroot from original TrollSpeed
+        cp libraries/libroot_dyn_iphoneos-arm64.a /usr/local/lib/ || true
+        
     - name: Replace TrollSpeed logic with Clash Royale menu
       run: |
         # Replace main application logic
         cp mobile_menu.m sources/HUDApp.mm
         cp mobile_menu.h sources/HUDHelper.h
-        
-        # Create stub libroot.h
-        mkdir -p libroot
-        echo "// Stub libroot.h" > libroot/libroot.h
-        echo "#define LIBROOT_AVAILABLE 0" >> libroot/libroot.h
-        
-        # Fix precompiled header
-        sed -i '' 's/#import <libroot.h>/#ifdef LIBROOT_AVAILABLE\n#import <libroot.h>\n#endif/g' supports/hudapp-prefix.pch
         
         # Create stub functions for Swift files
         echo "" >> sources/HUDHelper.h
@@ -61,15 +56,14 @@ jobs:
         
     - name: Build with Xcode
       run: |
-        # Build using Xcode (without precompiled headers)
+        # Build using Xcode (with original libroot)
         xcodebuild clean build archive \
           -scheme TrollSpeed \
           -project TrollSpeed.xcodeproj \
           -sdk iphoneos \
           -destination 'generic/platform=iOS' \
           -archivePath ClashRoyaleMenu \
-          CODE_SIGNING_ALLOWED=NO \
-          GCC_PRECOMPILE_PREFIX_HEADER=NO | xcpretty || true
+          CODE_SIGNING_ALLOWED=NO | xcpretty || true
         
         # Check if archive was created
         if [ ! -d "ClashRoyaleMenu.xcarchive" ]; then
@@ -80,8 +74,7 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath ClashRoyaleMenu \
-            CODE_SIGNING_ALLOWED=NO \
-            GCC_PRECOMPILE_PREFIX_HEADER=NO
+            CODE_SIGNING_ALLOWED=NO
         fi
         
     - name: Create .tipa
