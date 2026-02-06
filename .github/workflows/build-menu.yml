@@ -28,6 +28,11 @@ jobs:
         # Copy KFD files
         cp -r kfd ClashRoyaleMenu.app/
         
+        # Create dummy executable
+        echo '#!/bin/bash' > ClashRoyaleMenu.app/ClashRoyaleMenu
+        echo 'echo "ClashRoyale Menu"' >> ClashRoyaleMenu.app/ClashRoyaleMenu
+        chmod +x ClashRoyaleMenu.app/ClashRoyaleMenu
+        
         # Create basic Info.plist
         cat > ClashRoyaleMenu.app/Info.plist << 'EOF'
         <?xml version="1.0" encoding="UTF-8"?>
