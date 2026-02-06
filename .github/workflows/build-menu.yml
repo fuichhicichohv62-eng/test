@@ -12,50 +12,65 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Setup KFD files
-      run: |
-        mkdir -p kfd/info kfd/krkw/kread kfd/krkw/kwrite kfd/puaf
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/*.h kfd/ || true
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/info/*.h kfd/info/ || true
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/krkw/kread/*.h kfd/krkw/kread/ || true
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/krkw/kwrite/*.h kfd/krkw/kwrite/ || true
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/puaf/*.h kfd/puaf/ || true
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd.h kfd/ || true
-        find kfd -name "*.h" | head -20
+    - name: Setup Xcode version
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.4'
     
-    - name: Install Theos and ldid
+    - name: Install dependencies
       run: |
-        git clone --recursive https://github.com/theos/theos.git $HOME/theos
-        echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         brew install ldid
         
-    - name: Build with Theos
+    - name: Build with Xcode
       run: |
-        export THEOS=$HOME/theos
-        make clean
-        make package
+        # Build using Xcode
+        xcodebuild clean build archive \
+          -scheme TrollSpeed \
+          -project TrollSpeed.xcodeproj \
+          -sdk iphoneos \
+          -destination 'generic/platform=iOS' \
+          -archivePath ClashRoyaleMenu \
+          CODE_SIGNING_ALLOWED=NO | xcpretty || true
         
-    - name: Create .tipa from .dylib
-      run: |
-        mkdir -p Payload/ClashRoyaleMenu.app
-        cp .theos/obj/debug/ClashRoyaleMobileMenu.dylib Payload/ClashRoyaleMenu.app/
-        cp mobile_menu.h Payload/ClashRoyaleMenu.app/ || true
-        mkdir -p output
-        cd Payload && zip -r ../output/ClashRoyaleMenu.tipa . && cd ..
-        ls -lh output/
+        # Fix permissions and copy entitlements
+        chmod 0644 Resources/Info.plist
+        cp supports/entitlements.plist ClashRoyaleMenu.xcarchive/Products/
+        
+        # Navigate to Applications
+        cd ClashRoyaleMenu.xcarchive/Products/Applications
+        
+        # Remove signature
+        codesign --remove-signature TrollSpeed.app
+        cd -
+        
+        # Create Payload structure
+        cd ClashRoyaleMenu.xcarchive/Products
+        mv Applications Payload
+        
+        # Sign with ldid
+        ldid -Sentitlements.plist Payload/TrollSpeed.app
+        chmod 0644 Payload/TrollSpeed.app/Info.plist
+        
+        # Create .tipa
+        zip -qr ClashRoyaleMenu.tipa Payload
+        cd -
+        
+        # Move to packages
+        mkdir -p packages
+        mv ClashRoyaleMenu.xcarchive/Products/ClashRoyaleMenu.tipa packages/
         
     - name: Upload TIPA
       uses: actions/upload-artifact@v4
       with:
         name: ClashRoyaleMenu-TIPA
-        path: output/*.tipa
+        path: packages/*.tipa
         
     - name: Create Release
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: menu-v1.0-${{ github.run_number }}
-        files: output/*.tipa
+        files: packages/*.tipa
         draft: false
         prerelease: false
       env:
