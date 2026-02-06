@@ -3,11 +3,6 @@ name: Build Clash Royale Menu
 on:
   push:
     branches: [ master, main ]
-    paths:
-      - 'mobile_menu.*'
-      - 'kfd/**'
-      - 'Makefile'
-      - '.github/workflows/build-menu.yml'
   workflow_dispatch:
 
 jobs:
