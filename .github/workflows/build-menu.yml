@@ -14,10 +14,14 @@ jobs:
     
     - name: Setup KFD files
       run: |
-        mkdir -p kfd
-        cp -r TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/* kfd/
-        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd.h kfd/
-        ls -la kfd/
+        mkdir -p kfd/info kfd/krkw/kread kfd/krkw/kwrite kfd/puaf
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/*.h kfd/ || true
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/info/*.h kfd/info/ || true
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/krkw/kread/*.h kfd/krkw/kread/ || true
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/krkw/kwrite/*.h kfd/krkw/kwrite/ || true
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd/puaf/*.h kfd/puaf/ || true
+        cp TrollSpeed.xcodeproj/kfd-main/kfd/libkfd.h kfd/ || true
+        find kfd -name "*.h" | head -20
     
     - name: Install Theos
       run: |
