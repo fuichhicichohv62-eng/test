@@ -42,8 +42,8 @@ jobs:
         char *libroot_dyn_rootfspath(const char *path, char *resolvedPath);
         char *libroot_dyn_jbrootpath(const char *path, char *resolvedPath);
         
-        // Convenience macros
-        #define JBROOT_PATH_NSSTRING(path) [@"/var/jb" stringByAppendingString:@path]
+        // Convenience macros - fixed for proper string concatenation
+        #define JBROOT_PATH_NSSTRING(path) [@"/var/jb" stringByAppendingString:path]
         #define JBROOT_PATH_CSTRING(cPath) "/var/jb" cPath
         
         #ifdef __cplusplus
