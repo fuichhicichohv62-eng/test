@@ -48,7 +48,19 @@ static MobileMenu *sharedInstance = nil;
 
 - (void)setupMenu {
     // Get the main window
-    UIWindow *mainWindow = [UIApplication sharedApplication].keyWindow;
+    UIWindow *mainWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *window in scene.windows) {
+                    if (window.isKeyWindow) {
+                        mainWindow = window;
+                        break;
+                    }
+                }
+            }
+        }
+    }
     if (!mainWindow) {
         mainWindow = [UIApplication sharedApplication].windows.firstObject;
     }
@@ -409,7 +421,24 @@ static MobileMenu *sharedInstance = nil;
 }
 
 - (UIViewController *)topViewController {
-    UIViewController *topVC = [UIApplication sharedApplication].keyWindow.rootViewController;
+    UIWindow *keyWindow = nil;
+    if (@available(iOS 13.0, *)) {
+        for (UIWindowScene *scene in [UIApplication sharedApplication].connectedScenes) {
+            if (scene.activationState == UISceneActivationStateForegroundActive) {
+                for (UIWindow *window in scene.windows) {
+                    if (window.isKeyWindow) {
+                        keyWindow = window;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    if (!keyWindow) {
+        keyWindow = [UIApplication sharedApplication].windows.firstObject;
+    }
+    
+    UIViewController *topVC = keyWindow.rootViewController;
     while (topVC.presentedViewController) {
         topVC = topVC.presentedViewController;
     }
@@ -486,19 +515,6 @@ static MobileMenu *sharedInstance = nil;
 }
 
 @end
-
-// Constructor to initialize the menu when the dylib is loaded
-__attribute__((constructor))
-static void initializeMenu() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        // Check if we're in the target app
-        NSString *bundleId = [[NSBundle mainBundle] bundleIdentifier];
-        if ([bundleId isEqualToString:TARGET_BUNDLE_ID]) {
-            NSLog(@"[MobileMenu] Initializing menu for Clash Royale");
-            [MobileMenu sharedInstance];
-        }
-    });
-}
 
 // Constructor to initialize the menu when the dylib is loaded
 __attribute__((constructor))

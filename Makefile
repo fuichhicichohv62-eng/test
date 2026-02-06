@@ -6,7 +6,7 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = ClashRoyaleMobileMenu
 
 ClashRoyaleMobileMenu_FILES = mobile_menu.m
-ClashRoyaleMobileMenu_CFLAGS = -fobjc-arc -I. -DCONFIG_ASSERT=1 -DCONFIG_PRINT=1 -DCONFIG_TIMER=1
+ClashRoyaleMobileMenu_CFLAGS = -fobjc-arc -I. -DCONFIG_ASSERT=1 -DCONFIG_PRINT=1 -DCONFIG_TIMER=1 -Wno-error -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-but-set-variable -Wno-macro-redefined
 ClashRoyaleMobileMenu_FRAMEWORKS = UIKit Foundation
 ClashRoyaleMobileMenu_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
 
