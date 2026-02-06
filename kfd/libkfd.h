@@ -12,7 +12,7 @@
 #define CONFIG_PRINT 1
 #define CONFIG_TIMER 1
 
-#include "libkfd/common.h"
+#include "common.h"
 
 /*
  * The public API of libkfd.
@@ -140,10 +140,10 @@ struct kfd {
     struct krkw kwrite;
 };
 
-#include "libkfd/info.h"
-#include "libkfd/puaf.h"
-#include "libkfd/krkw.h"
-#include "libkfd/perf.h"
+#include "info.h"
+#include "puaf.h"
+#include "krkw.h"
+#include "perf.h"
 
 struct kfd* kfd_init(u64 puaf_pages, u64 puaf_method, u64 kread_method, u64 kwrite_method)
 {
