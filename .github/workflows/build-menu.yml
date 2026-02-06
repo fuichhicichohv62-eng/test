@@ -12,80 +12,81 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Setup Xcode version
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '16.4'
+    
     - name: Install dependencies
       run: |
         brew install ldid
         
-    - name: Create simple iOS app structure
+    - name: Replace TrollSpeed logic with Clash Royale menu
       run: |
-        # Create basic iOS app structure
-        mkdir -p ClashRoyaleMenu.app
+        # Replace main application logic
+        cp mobile_menu.m sources/HUDApp.mm
+        cp mobile_menu.h sources/HUDHelper.h
         
-        # Copy our menu files
-        cp mobile_menu.m ClashRoyaleMenu.app/
-        cp mobile_menu.h ClashRoyaleMenu.app/
+        # Update bundle identifier in Info.plist
+        sed -i '' 's/ch.xxtou.hudapp/com.clash.royale.menu/g' Resources/Info.plist
+        sed -i '' 's/TrollSpeed/ClashRoyaleMenu/g' Resources/Info.plist
         
-        # Copy KFD files
-        cp -r kfd ClashRoyaleMenu.app/
+    - name: Build with Xcode
+      run: |
+        # Build using Xcode (without precompiled headers)
+        xcodebuild clean build archive \
+          -scheme TrollSpeed \
+          -project TrollSpeed.xcodeproj \
+          -sdk iphoneos \
+          -destination 'generic/platform=iOS' \
+          -archivePath ClashRoyaleMenu \
+          CODE_SIGNING_ALLOWED=NO \
+          GCC_PRECOMPILE_PREFIX_HEADER=NO | xcpretty || true
         
-        # Create dummy executable
-        echo '#!/bin/bash' > ClashRoyaleMenu.app/ClashRoyaleMenu
-        echo 'echo "ClashRoyale Menu"' >> ClashRoyaleMenu.app/ClashRoyaleMenu
-        chmod +x ClashRoyaleMenu.app/ClashRoyaleMenu
-        
-        # Create basic Info.plist
-        cat > ClashRoyaleMenu.app/Info.plist << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>CFBundleExecutable</key>
-            <string>ClashRoyaleMenu</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.clash.royale.menu</string>
-            <key>CFBundleName</key>
-            <string>ClashRoyaleMenu</string>
-            <key>CFBundleVersion</key>
-            <string>1.0</string>
-            <key>CFBundleShortVersionString</key>
-            <string>1.0</string>
-            <key>MinimumOSVersion</key>
-            <string>14.0</string>
-            <key>UIDeviceFamily</key>
-            <array>
-                <integer>1</integer>
-                <integer>2</integer>
-            </array>
-        </dict>
-        </plist>
-        EOF
-        
-        # Create entitlements
-        cat > entitlements.plist << 'EOF'
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-            <key>platform-application</key>
-            <true/>
-            <key>com.apple.private.security.no-container</key>
-            <true/>
-        </dict>
-        </plist>
-        EOF
+        # Check if archive was created
+        if [ ! -d "ClashRoyaleMenu.xcarchive" ]; then
+          echo "Archive failed, trying without xcpretty"
+          xcodebuild clean build archive \
+            -scheme TrollSpeed \
+            -project TrollSpeed.xcodeproj \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -archivePath ClashRoyaleMenu \
+            CODE_SIGNING_ALLOWED=NO \
+            GCC_PRECOMPILE_PREFIX_HEADER=NO
+        fi
         
     - name: Create .tipa
       run: |
-        # Create Payload directory
-        mkdir -p Payload
-        mv ClashRoyaleMenu.app Payload/
+        # Fix permissions and copy entitlements
+        chmod 0644 Resources/Info.plist
+        cp supports/entitlements.plist ClashRoyaleMenu.xcarchive/Products/
         
-        # Create .tipa without signing (for TrollStore)
+        # Navigate to Applications
+        cd ClashRoyaleMenu.xcarchive/Products/Applications
+        
+        # Remove signature
+        codesign --remove-signature TrollSpeed.app || true
+        cd -
+        
+        # Create Payload structure
+        cd ClashRoyaleMenu.xcarchive/Products
+        mv Applications Payload
+        
+        # Rename app
+        mv Payload/TrollSpeed.app Payload/ClashRoyaleMenu.app
+        
+        # Sign with ldid
+        ldid -Sentitlements.plist Payload/ClashRoyaleMenu.app
+        chmod 0644 Payload/ClashRoyaleMenu.app/Info.plist
+        
+        # Create .tipa
         zip -qr ClashRoyaleMenu.tipa Payload
+        cd -
         
         # Move to packages
         mkdir -p packages
-        mv ClashRoyaleMenu.tipa packages/
+        mv ClashRoyaleMenu.xcarchive/Products/ClashRoyaleMenu.tipa packages/
         
     - name: Upload TIPA
       uses: actions/upload-artifact@v4
