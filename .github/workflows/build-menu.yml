@@ -27,6 +27,30 @@ jobs:
         cp mobile_menu.m sources/HUDApp.mm
         cp mobile_menu.h sources/HUDHelper.h
         
+        # Create stub functions for Swift files
+        cat >> sources/HUDHelper.h << 'EOF'
+
+// Stub functions for Swift compatibility
+bool IsHUDEnabled(void);
+void SetHUDEnabled(bool enabled);
+EOF
+        
+        cat >> sources/HUDApp.mm << 'EOF'
+
+// Stub functions for Swift compatibility
+bool IsHUDEnabled(void) {
+    return [[MobileMenu sharedInstance] isElixirHackEnabled];
+}
+
+void SetHUDEnabled(bool enabled) {
+    if (enabled) {
+        [[MobileMenu sharedInstance] enableElixirVisibility];
+    } else {
+        [[MobileMenu sharedInstance] disableElixirVisibility];
+    }
+}
+EOF
+        
         # Update bundle identifier in Info.plist
         sed -i '' 's/ch.xxtou.hudapp/com.clash.royale.menu/g' Resources/Info.plist
         sed -i '' 's/TrollSpeed/ClashRoyaleMenu/g' Resources/Info.plist
